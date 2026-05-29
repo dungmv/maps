@@ -1,8 +1,15 @@
 import "./style.css";
 import "leaflet/dist/leaflet.css";
 import { decode } from "@googlemaps/polyline-codec";
-import L, {Map, TileLayer, Marker, Popup, LatLng, Polyline, Control} from "leaflet";
-import humanizeDuration from "humanize-duration";
+import L, {
+  Map,
+  TileLayer,
+  Marker,
+  Popup,
+  LatLng,
+  Polyline,
+  Control,
+} from "leaflet";
 
 /** @type {Polyline} */
 let polylineTracking = null;
@@ -11,22 +18,27 @@ const loading = document.getElementById("loading");
 const map = new Map("map", {
   zoom: 15,
   center: [21.036809, 105.782771],
-  zoomControl: false
-})
-const tl = new TileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png?{foo}',
-  { foo: 'bar', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }
+  zoomControl: false,
+});
+const tl = new TileLayer(
+  "https://tile.openstreetmap.org/{z}/{x}/{y}.png?{foo}",
+  { foo: "bar" },
 );
-tl.addTo(map)
+tl.addTo(map);
 
-const cz = new Control.Zoom({ position: 'bottomleft' });
+const cz = new Control.Zoom({ position: "bottomleft" });
 cz.addTo(map);
 
 const startMarker = new Marker({ lat: 21.029245, lng: 105.777964 });
 const endMarker = new Marker({ lat: 21.036809, lng: 105.782771 });
 const infoWindow = new Popup();
+const durationFormatter = new Intl.DurationFormat("en", {
+  style: "long",
+  units: ["hour", "minute", "second"],
+});
 
 function formatDuration(seconds) {
-  return humanizeDuration(seconds * 1000, { language: "en" });
+  return durationFormatter.format({ seconds });
 }
 
 function summarizeRoute(route) {
@@ -37,7 +49,7 @@ function summarizeRoute(route) {
       distance: acc.distance + leg.distance.value, // meters
       duration: acc.duration + leg.duration.value, // seconds
     }),
-    { distance: 0, duration: 0 }
+    { distance: 0, duration: 0 },
   );
 
   return {
@@ -101,8 +113,12 @@ document.getElementById("btn_search").addEventListener("click", function () {
   const mapUrl = document.getElementById("map-url").value;
   const officeId = document.getElementById("office-id").value;
   const origin = document.getElementById("origin").value.replace(/\s+/g, "");
-  const waypoints = document.getElementById("waypoints").value.replace(/\s+/g, "");
-  const destination = document.getElementById("destination").value.replace(/\s+/g, "");
+  const waypoints = document
+    .getElementById("waypoints")
+    .value.replace(/\s+/g, "");
+  const destination = document
+    .getElementById("destination")
+    .value.replace(/\s+/g, "");
 
   const url = new URL(`${mapUrl}/maps/api/directions/json`);
   url.searchParams.append("origin", origin);
@@ -113,7 +129,7 @@ document.getElementById("btn_search").addEventListener("click", function () {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
-      "X-Office-Id": officeId
+      "X-Office-Id": officeId,
     },
   })
     .then((response) => {
@@ -151,7 +167,9 @@ document.getElementById("btn_search").addEventListener("click", function () {
         label.className = "text-sm font-medium cursor-pointer";
         // use route.summary if available, otherwise fall back to index
         const summary = summarizeRoute(route);
-        label.textContent = `${route.summary} | ${summary.totalDistanceText}, ${summary.totalDurationText}` || `Route ${idx + 1}`;
+        label.textContent =
+          `${route.summary} | ${summary.totalDistanceText}, ${summary.totalDurationText}` ||
+          `Route ${idx + 1}`;
 
         wrapper.appendChild(input);
         wrapper.appendChild(label);
@@ -160,9 +178,15 @@ document.getElementById("btn_search").addEventListener("click", function () {
         // when radio selection changes, redraw that route
         input.addEventListener("change", () => {
           if (input.checked) {
-            const poly = route.overview_polyline && route.overview_polyline.points;
+            const poly =
+              route.overview_polyline && route.overview_polyline.points;
             if (poly) {
-              drawTracking(poly, startPoint, endPoint, summary.totalDistanceText);
+              drawTracking(
+                poly,
+                startPoint,
+                endPoint,
+                summary.totalDistanceText,
+              );
             }
           }
         });
@@ -177,7 +201,7 @@ document.getElementById("btn_search").addEventListener("click", function () {
 });
 
 map.on("click", function (event) {
-  const {lat, lng} = event.latlng;
+  const { lat, lng } = event.latlng;
   let marker = null;
   let input = null;
   if (!startMarker._map) {
