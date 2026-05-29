@@ -37,6 +37,32 @@ const durationFormatter = new Intl.DurationFormat("en", {
   units: ["hour", "minute", "second"],
 });
 
+const sidebar = document.getElementById("sidebar");
+const sidebarToggle = document.getElementById("sidebar-toggle");
+const sidebarToggleIcon = sidebarToggle.querySelector(".material-icons");
+
+function updateSidebarButton(isOpen) {
+  sidebarToggleIcon.textContent = isOpen ? "chevron_left" : "menu";
+  sidebarToggle.setAttribute(
+    "aria-label",
+    isOpen ? "Close sidebar" : "Open sidebar",
+  );
+}
+
+sidebarToggle.addEventListener("click", () => {
+  const isClosed = sidebar.classList.contains("w-0");
+  if (isClosed) {
+    sidebar.classList.remove("w-0");
+    sidebar.classList.add("w-[340px]");
+  } else {
+    sidebar.classList.add("w-0");
+    sidebar.classList.remove("w-[340px]");
+  }
+  updateSidebarButton(isClosed);
+});
+
+updateSidebarButton(true);
+
 function formatDuration(seconds) {
   return durationFormatter.format({ seconds });
 }
