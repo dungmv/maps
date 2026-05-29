@@ -118,9 +118,9 @@ function drawTracking(encodedPolyline, startPoint, endPoint, distance) {
 }
 
 function clearMap() {
-  startMarker.remove(null);
-  startMarker.remove(null);
-  if (polylineTracking) polylineTracking.remove(null);
+  startMarker.remove();
+  endMarker.remove();
+  if (polylineTracking) polylineTracking.remove();
   polylineTracking = null;
 }
 
@@ -134,6 +134,47 @@ function toLatLng(point) {
   return new LatLng(parseFloat(latlng[0]), parseFloat(latlng[1]));
 }
 
+// Active Tab State
+let activeTab = "direction";
+
+const tabDirection = document.getElementById("tab-direction");
+const tabPolyline = document.getElementById("tab-polyline");
+const contentDirection = document.getElementById("content-direction");
+const contentPolyline = document.getElementById("content-polyline");
+
+function switchTab(tab) {
+  activeTab = tab;
+  if (tab === "direction") {
+    // Direction Tab Button Active Styles
+    tabDirection.classList.add("bg-white", "text-blue-600", "shadow-sm", "font-semibold");
+    tabDirection.classList.remove("text-slate-600", "hover:text-slate-900", "font-medium");
+    
+    // Polyline Tab Button Inactive Styles
+    tabPolyline.classList.remove("bg-white", "text-blue-600", "shadow-sm", "font-semibold");
+    tabPolyline.classList.add("text-slate-600", "hover:text-slate-900", "font-medium");
+    
+    // Show/Hide Content
+    contentDirection.classList.remove("hidden");
+    contentPolyline.classList.add("hidden");
+  } else {
+    // Polyline Tab Button Active Styles
+    tabPolyline.classList.add("bg-white", "text-blue-600", "shadow-sm", "font-semibold");
+    tabPolyline.classList.remove("text-slate-600", "hover:text-slate-900", "font-medium");
+    
+    // Direction Tab Button Inactive Styles
+    tabDirection.classList.remove("bg-white", "text-blue-600", "shadow-sm", "font-semibold");
+    tabDirection.classList.add("text-slate-600", "hover:text-slate-900", "font-medium");
+    
+    // Show/Hide Content
+    contentPolyline.classList.remove("hidden");
+    contentDirection.classList.add("hidden");
+  }
+}
+
+tabDirection.addEventListener("click", () => switchTab("direction"));
+tabPolyline.addEventListener("click", () => switchTab("polyline"));
+
+// Direction search listener
 document.getElementById("btn_search").addEventListener("click", function () {
   loading.style.display = "flex";
   const mapUrl = document.getElementById("map-url").value;
@@ -226,25 +267,140 @@ document.getElementById("btn_search").addEventListener("click", function () {
     });
 });
 
-map.on("click", function (event) {
-  const { lat, lng } = event.latlng;
-  let marker = null;
-  let input = null;
-  if (!startMarker._map) {
-    marker = startMarker;
-    input = document.getElementById("origin");
-  } else if (!endMarker.map) {
-    marker = endMarker;
-    input = document.getElementById("destination");
+// Polyline drawing listener
+document.getElementById("btn_draw").addEventListener("click", function () {
+  const coordsInput = document.getElementById("polyline-coords").value.trim();
+  if (!coordsInput) {
+    alert("Vui lòng nhập danh sách toạ độ!");
+    return;
   }
 
-  if (marker) {
-    marker.map = map;
-    marker.position = event.latlng;
-    input.value = `${lat},${lng}`;
-    marker.on("click", function () {
-      marker.map = null; // Remove marker when clicked
-      input.value = ""; // Clear the input field
-    });
+  // Parse coords split by | or newlines
+  const points = coordsInput.split(/[|\n]+/).map(p => p.trim()).filter(Boolean);
+  const path = [];
+  
+  for (const p of points) {
+    const parts = p.split(",");
+    if (parts.length === 2) {
+      const lat = parseFloat(parts[0].trim());
+      const lng = parseFloat(parts[1].trim());
+      if (!isNaN(lat) && !isNaN(lng)) {
+        path.push(new LatLng(lat, lng));
+      }
+    }
+  }
+
+  if (path.length < 2) {
+    alert("Vui lòng nhập ít nhất 2 toạ độ hợp lệ (định dạng: lat,lng|lat,lng...)");
+    return;
+  }
+
+  clearMap();
+
+  const startPoint = path[0];
+  const endPoint = path[path.length - 1];
+
+  startMarker.setLatLng(startPoint).addTo(map);
+  endMarker.setLatLng(endPoint).addTo(map);
+
+  polylineTracking = new Polyline(path, { color: "#2563eb", weight: 5, opacity: 0.8 });
+  polylineTracking.addTo(map);
+
+  // Calculate total distance dynamically
+  let totalDistanceM = 0;
+  for (let i = 0; i < path.length - 1; i++) {
+    totalDistanceM += path[i].distanceTo(path[i + 1]);
+  }
+  const distanceText = `${(totalDistanceM / 1000).toFixed(2)} km`;
+
+  const bounds = polylineTracking.getBounds();
+  map.fitBounds(bounds);
+
+  const infoContent = `
+    <div class="p-1 font-sans">
+      <h3 class="text-sm font-bold text-slate-800 border-b border-slate-100 pb-1 mb-1.5 flex items-center gap-1">
+        <span class="material-icons text-emerald-600 text-sm">gesture</span> Polyline Path
+      </h3>
+      <p class="text-xs text-slate-600 flex justify-between gap-4">
+        <span>Total Points:</span> <strong class="text-slate-800">${path.length}</strong>
+      </p>
+      <p class="text-xs text-slate-600 flex justify-between gap-4 mt-0.5">
+        <span>Distance:</span> <strong class="text-emerald-600 font-bold">${distanceText}</strong>
+      </p>
+    </div>
+  `;
+
+  infoWindow.setContent(infoContent);
+  infoWindow.setLatLng(bounds.getCenter());
+  infoWindow.openOn(map);
+});
+
+// Map click listener
+map.on("click", function (event) {
+  const { lat, lng } = event.latlng;
+  
+  if (activeTab === "direction") {
+    let marker = null;
+    let input = null;
+    
+    if (!startMarker._map) {
+      marker = startMarker;
+      input = document.getElementById("origin");
+    } else if (!endMarker._map) {
+      marker = endMarker;
+      input = document.getElementById("destination");
+    }
+
+    if (marker) {
+      marker.setLatLng(event.latlng).addTo(map);
+      input.value = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+      marker.on("click", function () {
+        marker.remove();
+        input.value = "";
+      });
+    }
+  } else if (activeTab === "polyline") {
+    const textarea = document.getElementById("polyline-coords");
+    const val = textarea.value.trim();
+    const formattedCoord = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+    
+    if (val) {
+      if (/[|\n]$/.test(val)) {
+        textarea.value = val + formattedCoord;
+      } else {
+        textarea.value = val + "|" + formattedCoord;
+      }
+    } else {
+      textarea.value = formattedCoord;
+    }
   }
 });
+
+// Settings Modal logic
+const settingsModal = document.getElementById("settings-modal");
+const btnSettings = document.getElementById("btn_settings");
+const closeSettings = document.getElementById("close-settings");
+const saveSettings = document.getElementById("save-settings");
+
+if (btnSettings && settingsModal && closeSettings && saveSettings) {
+  const openModal = () => {
+    settingsModal.classList.remove("hidden");
+    settingsModal.classList.add("flex");
+  };
+
+  const closeModal = () => {
+    settingsModal.classList.add("hidden");
+    settingsModal.classList.remove("flex");
+  };
+
+  btnSettings.addEventListener("click", openModal);
+  closeSettings.addEventListener("click", closeModal);
+  saveSettings.addEventListener("click", closeModal);
+
+  // Close modal when clicking outside of the modal dialog box
+  settingsModal.addEventListener("click", (e) => {
+    if (e.target === settingsModal) {
+      closeModal();
+    }
+  });
+}
