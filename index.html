@@ -6,31 +6,140 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MAPS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 
-<body>
-    <div class="w-full h-screen relative">
-        <div class="flex space-x-2 h-[50px] p-1">
-            <input id="map-url" type="url" class="flex-1 border rounded px-3 py-2" placeholder="url map" value="http://localhost:8080/">
-            <input id="origin" type="text" class="flex-1 border rounded px-3 py-2" placeholder="origin" value="">
-            <input id="waypoints" type="text" class="flex-1 border rounded px-3 py-2" placeholder="waypoints" value="">
-            <input id="destination" class="flex-1 border rounded px-3 py-2" type="text" placeholder="destination" value="" />
-            <input id="office-id" class="flex-1 border rounded px-3 py-2" type="text" placeholder="office id" value="" />
-            <button class="px-3 py-2 rounded border hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700" type="button" id="btn_search">Search</button>
-        </div>
-        <div id="map" class="w-full h-[calc(100vh-50px)]"></div>
-        <div id="routes" class="absolute top-[70px] left-4 bg-white border border-gray-300 rounded-lg shadow-lg p-4 space-y-3" style="display: none; z-index: 450;"></div>
-        <div id="loading" style="display: none;" class="absolute w-screen h-screen inset-0 z-50 bg-black opacity-30 flex items-center justify-center">
-            <div class="w-12 h-12">
-                <svg aria-hidden="true" class="w-full h-full text-gray-200 animate-spin fill-yellow-400" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
-                    <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
-                </svg>
-                <span class="sr-only">Loading...</span>
+<body class="bg-slate-50 text-slate-800 antialiased font-sans">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="shrink-0 w-85 flex flex-col overflow-hidden border-r border-slate-200 bg-white shadow-lg transition-all duration-300 ease-in-out z-20">
+            <!-- Sidebar Header / Control Panel Title -->
+            <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                <div class="flex items-center gap-2.5">
+                    <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-blue-50 text-blue-600 shadow-inner">
+                        <span class="material-icons text-xl">map</span>
+                    </div>
+                    <div>
+                        <h1 class="text-sm font-bold text-slate-900 tracking-tight leading-tight">Map Tracking</h1>
+                        <p class="text-[10px] text-slate-500 font-medium">Route & Polyline Visualizer</p>
+                    </div>
+                </div>
+                <button id="btn_settings" type="button" class="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition focus:outline-none cursor-pointer" title="Settings">
+                    <span class="material-icons text-xl">settings</span>
+                </button>
+            </div>
+
+            <!-- Tabs Container -->
+            <div class="flex bg-slate-100/80 p-1 m-4 rounded-xl gap-1 border border-slate-200/50">
+                <button id="tab-direction" type="button" class="flex-1 py-2 text-center text-sm font-semibold rounded-lg bg-white text-blue-600 shadow-sm transition-all duration-200 focus:outline-none cursor-pointer">
+                    Direction
+                </button>
+                <button id="tab-polyline" type="button" class="flex-1 py-2 text-center text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 transition-all duration-200 focus:outline-none cursor-pointer">
+                    Polyline
+                </button>
+            </div>
+
+            <!-- Tab Contents -->
+            <div class="flex-1 overflow-y-auto min-h-0">
+                <!-- Direction Content -->
+                <div id="content-direction" class="space-y-4 p-5 transition-opacity duration-300">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Origin</label>
+                        <div class="relative flex items-center">
+                            <span class="material-icons absolute left-3 text-slate-400 text-lg">my_location</span>
+                            <input id="origin" type="text" class="w-full rounded-xl border border-slate-200 pl-10 pr-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="Latitude, Longitude" value="">
+                        </div>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Waypoints</label>
+                        <div class="relative flex items-center">
+                            <span class="material-icons absolute left-3 text-slate-400 text-lg">alt_route</span>
+                            <input id="waypoints" type="text" class="w-full rounded-xl border border-slate-200 pl-10 pr-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="lat,lng|lat,lng" value="">
+                        </div>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Destination</label>
+                        <div class="relative flex items-center">
+                            <span class="material-icons absolute left-3 text-slate-400 text-lg">pin_drop</span>
+                            <input id="destination" type="text" class="w-full rounded-xl border border-slate-200 pl-10 pr-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="Latitude, Longitude" value="">
+                        </div>
+                    </div>
+                    <button id="btn_search" type="button" class="w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white shadow-md shadow-blue-100 transition hover:bg-blue-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer flex items-center justify-center gap-2">
+                        <span class="material-icons text-base">search</span>
+                        <span>Search Route</span>
+                    </button>
+                </div>
+
+                <!-- Polyline Content -->
+                <div id="content-polyline" class="space-y-4 p-5 hidden transition-opacity duration-300">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Coordinates List</label>
+                        <textarea id="polyline-coords" rows="8" class="w-full rounded-xl border border-slate-200 px-3.5 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none font-mono leading-relaxed" placeholder="lat,lng|lat,lng|..."></textarea>
+                        <p class="text-[11px] text-slate-400 leading-normal">
+                            <span class="font-semibold">Format:</span> lat,lng|lat,lng... or separate lines. Click directly on the map to add coordinates automatically.
+                        </p>
+                    </div>
+                    <button id="btn_draw" type="button" class="w-full rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-100 transition hover:bg-emerald-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer flex items-center justify-center gap-2">
+                        <span class="material-icons text-base">gesture</span>
+                        <span>Draw Polyline</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Map Viewport -->
+        <main class="relative flex-1 overflow-hidden">
+            <button id="sidebar-toggle" type="button" aria-label="Toggle sidebar" class="absolute left-4 top-4 z-500 inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-lg transition hover:bg-slate-100 focus:outline-none cursor-pointer">
+                <span class="material-icons">chevron_left</span>
+            </button>
+
+            <div id="map" class="h-full"></div>
+            <div id="routes" style="display: none;" class="absolute top-4 right-4 z-500 w-64 rounded-xl border border-slate-200 bg-white/95 backdrop-blur-md p-3 shadow-lg"></div>
+            <div id="loading" style="display: none;" class="absolute inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-[2px]">
+                <div class="w-12 h-12">
+                    <svg aria-hidden="true" class="w-full h-full text-gray-200 animate-spin fill-blue-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
+                        <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
+                    </svg>
+                    <span class="sr-only">Loading...</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 z-1000 hidden items-center justify-center bg-slate-900/40 backdrop-blur-[2px] transition-all duration-300">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 m-4 transform scale-95 transition-all duration-300">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="material-icons text-blue-600 text-xl">settings</span>
+                    <h3 class="text-md font-bold text-slate-900">Map Server Settings</h3>
+                </div>
+                <button id="close-settings" type="button" class="text-slate-400 hover:text-slate-600 transition focus:outline-none cursor-pointer flex items-center justify-center">
+                    <span class="material-icons text-lg">close</span>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div class="space-y-1.5">
+                    <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Map Service URL</label>
+                    <div class="relative flex items-center">
+                        <span class="material-icons absolute left-3 text-slate-400 text-base">link</span>
+                        <input id="map-url" type="url" class="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="http://localhost:8080/" value="http://localhost:8080/">
+                    </div>
+                    <p class="text-[10px] text-slate-400 leading-normal">Specify the base URL for directions API queries.</p>
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-2 border-t border-slate-100 pt-3 mt-4">
+                <button id="save-settings" type="button" class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-blue-100 transition hover:bg-blue-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer">
+                    Save Changes
+                </button>
             </div>
         </div>
     </div>
+
     <script type="module" src="src/main.js"></script>
 </body>
 
