@@ -53,10 +53,10 @@ sidebarToggle.addEventListener("click", () => {
   const isClosed = sidebar.classList.contains("w-0");
   if (isClosed) {
     sidebar.classList.remove("w-0");
-    sidebar.classList.add("w-[340px]");
+    sidebar.classList.add("w-85");
   } else {
     sidebar.classList.add("w-0");
-    sidebar.classList.remove("w-[340px]");
+    sidebar.classList.remove("w-85");
   }
   updateSidebarButton(isClosed);
 });
