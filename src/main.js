@@ -31,7 +31,7 @@ cz.addTo(map);
 
 const startMarker = new Marker({ lat: 21.029245, lng: 105.777964 });
 const endMarker = new Marker({ lat: 21.036809, lng: 105.782771 });
-const infoWindow = new Popup();
+const infoWindow = new Popup({interactive: true});
 const durationFormatter = new Intl.DurationFormat("en", {
   style: "long",
   units: ["hour", "minute", "second"],
@@ -122,6 +122,7 @@ function clearMap() {
   endMarker.remove();
   if (polylineTracking) polylineTracking.remove();
   polylineTracking = null;
+  map.closePopup();
 }
 
 /**
@@ -178,14 +179,9 @@ tabPolyline.addEventListener("click", () => switchTab("polyline"));
 document.getElementById("btn_search").addEventListener("click", function () {
   loading.style.display = "flex";
   const mapUrl = document.getElementById("map-url").value;
-  const officeId = document.getElementById("office-id").value;
   const origin = document.getElementById("origin").value.replace(/\s+/g, "");
-  const waypoints = document
-    .getElementById("waypoints")
-    .value.replace(/\s+/g, "");
-  const destination = document
-    .getElementById("destination")
-    .value.replace(/\s+/g, "");
+  const waypoints = document.getElementById("waypoints").value.replace(/\s+/g, "");
+  const destination = document.getElementById("destination").value.replace(/\s+/g, "");
 
   const url = new URL(`${mapUrl}/maps/api/directions/json`);
   url.searchParams.append("origin", origin);
@@ -196,7 +192,6 @@ document.getElementById("btn_search").addEventListener("click", function () {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
-      "X-Office-Id": officeId,
     },
   })
     .then((response) => {
@@ -212,26 +207,43 @@ document.getElementById("btn_search").addEventListener("click", function () {
       drawTracking(polyline, startPoint, endPoint, distance);
       // render route choices into #routes
       const routesDiv = document.getElementById("routes");
-      // clear previous entries
-      routesDiv.innerHTML = "";
+      // clear previous entries and inject header with close button
+      routesDiv.innerHTML = `
+        <div class="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-2">
+          <div class="flex items-center gap-1.5">
+            <span class="material-icons text-blue-600 text-base">directions</span>
+            <h3 class="text-xs font-bold text-slate-900">Route Suggestions</h3>
+          </div>
+          <button id="close-routes" type="button" class="text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md p-0.5 transition cursor-pointer flex items-center justify-center">
+            <span class="material-icons text-sm">close</span>
+          </button>
+        </div>
+        <div id="routes-list" class="space-y-1.5"></div>
+      `;
       routesDiv.style.display = "block";
+
+      const routesList = document.getElementById("routes-list");
+      document.getElementById("close-routes").addEventListener("click", () => {
+        routesDiv.style.display = "none";
+        clearMap();
+      });
 
       response.routes.forEach((route, idx) => {
         const id = Math.random().toString(36).slice(2, 9);
         const wrapper = document.createElement("div");
-        wrapper.className = "flex items-center space-x-2";
+        wrapper.className = "flex items-center space-x-2 py-0.5";
 
         const input = document.createElement("input");
         input.type = "radio";
         input.id = id;
         input.name = "route";
         input.value = idx;
-        input.className = "w-4 h-4";
+        input.className = "w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 border-slate-300";
         if (idx === 0) input.checked = true; // default first
 
         const label = document.createElement("label");
         label.htmlFor = id;
-        label.className = "text-sm font-medium cursor-pointer";
+        label.className = "text-[11px] font-medium text-slate-700 cursor-pointer hover:text-slate-900 leading-tight";
         // use route.summary if available, otherwise fall back to index
         const summary = summarizeRoute(route);
         label.textContent =
@@ -240,7 +252,7 @@ document.getElementById("btn_search").addEventListener("click", function () {
 
         wrapper.appendChild(input);
         wrapper.appendChild(label);
-        routesDiv.appendChild(wrapper);
+        routesList.appendChild(wrapper);
 
         // when radio selection changes, redraw that route
         input.addEventListener("change", () => {
@@ -316,23 +328,35 @@ document.getElementById("btn_draw").addEventListener("click", function () {
   const bounds = polylineTracking.getBounds();
   map.fitBounds(bounds);
 
-  const infoContent = `
-    <div class="p-1 font-sans">
-      <h3 class="text-sm font-bold text-slate-800 border-b border-slate-100 pb-1 mb-1.5 flex items-center gap-1">
-        <span class="material-icons text-emerald-600 text-sm">gesture</span> Polyline Path
-      </h3>
-      <p class="text-xs text-slate-600 flex justify-between gap-4">
-        <span>Total Points:</span> <strong class="text-slate-800">${path.length}</strong>
-      </p>
-      <p class="text-xs text-slate-600 flex justify-between gap-4 mt-0.5">
-        <span>Distance:</span> <strong class="text-emerald-600 font-bold">${distanceText}</strong>
-      </p>
+  // Show details in #routes panel with close button
+  const routesDiv = document.getElementById("routes");
+  routesDiv.innerHTML = `
+    <div class="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-2">
+      <div class="flex items-center gap-1.5">
+        <span class="material-icons text-emerald-600 text-base">info</span>
+        <h3 class="text-xs font-bold text-slate-900">Polyline</h3>
+      </div>
+      <button id="close-routes" type="button" class="text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md p-0.5 transition cursor-pointer flex items-center justify-center">
+        <span class="material-icons text-sm">close</span>
+      </button>
+    </div>
+    <div class="grid grid-cols-2 gap-2 text-[11px]">
+      <div class="flex flex-col bg-slate-50/60 p-1.5 rounded-lg border border-slate-100">
+        <span class="text-slate-400 font-medium leading-none">Points</span>
+        <span class="text-slate-800 font-bold mt-1">${path.length}</span>
+      </div>
+      <div class="flex flex-col bg-slate-50/60 p-1.5 rounded-lg border border-slate-100">
+        <span class="text-slate-400 font-medium leading-none">Distance</span>
+        <span class="text-emerald-600 font-bold mt-1">${distanceText}</span>
+      </div>
     </div>
   `;
+  routesDiv.style.display = "block";
 
-  infoWindow.setContent(infoContent);
-  infoWindow.setLatLng(bounds.getCenter());
-  infoWindow.openOn(map);
+  document.getElementById("close-routes").addEventListener("click", () => {
+    routesDiv.style.display = "none";
+    clearMap();
+  });
 });
 
 // Map click listener
