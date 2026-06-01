@@ -15,7 +15,7 @@
 <body class="bg-slate-50 text-slate-800 antialiased font-sans">
     <div class="flex h-screen overflow-hidden">
         <!-- Sidebar -->
-        <aside id="sidebar" class="flex-shrink-0 w-[340px] flex flex-col overflow-hidden border-r border-slate-200 bg-white shadow-lg transition-all duration-300 ease-in-out z-20">
+        <aside id="sidebar" class="shrink-0 w-85 flex flex-col overflow-hidden border-r border-slate-200 bg-white shadow-lg transition-all duration-300 ease-in-out z-20">
             <!-- Sidebar Header / Control Panel Title -->
             <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
                 <div class="flex items-center gap-2.5">
@@ -92,12 +92,12 @@
 
         <!-- Map Viewport -->
         <main class="relative flex-1 overflow-hidden">
-            <button id="sidebar-toggle" type="button" aria-label="Toggle sidebar" class="absolute left-4 top-4 z-[500] inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-lg transition hover:bg-slate-100 focus:outline-none cursor-pointer">
+            <button id="sidebar-toggle" type="button" aria-label="Toggle sidebar" class="absolute left-4 top-4 z-500 inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-lg transition hover:bg-slate-100 focus:outline-none cursor-pointer">
                 <span class="material-icons">chevron_left</span>
             </button>
 
             <div id="map" class="h-full"></div>
-            <div id="routes" style="display: none;" class="absolute top-4 right-4 z-[500] w-64 rounded-xl border border-slate-200 bg-white/95 backdrop-blur-md p-3 shadow-lg"></div>
+            <div id="routes" style="display: none;" class="absolute top-4 right-4 z-500 w-64 rounded-xl border border-slate-200 bg-white/95 backdrop-blur-md p-3 shadow-lg"></div>
             <div id="loading" style="display: none;" class="absolute inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-[2px]">
                 <div class="w-12 h-12">
                     <svg aria-hidden="true" class="w-full h-full text-gray-200 animate-spin fill-blue-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -111,7 +111,7 @@
     </div>
 
     <!-- Settings Modal -->
-    <div id="settings-modal" class="fixed inset-0 z-[1000] hidden items-center justify-center bg-slate-900/40 backdrop-blur-[2px] transition-all duration-300">
+    <div id="settings-modal" class="fixed inset-0 z-1000 hidden items-center justify-center bg-slate-900/40 backdrop-blur-[2px] transition-all duration-300">
         <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 m-4 transform scale-95 transition-all duration-300">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
                 <div class="flex items-center gap-2">
