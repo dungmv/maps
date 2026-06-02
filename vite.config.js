@@ -1,11 +1,10 @@
-// vite.config.js
 import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  base: '/map/',
+  base: '/',
   build: {
-    outDir: "docs",
+    outDir: "dist",
   },
   plugins: [tailwindcss()],
 });
