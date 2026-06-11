@@ -34,18 +34,18 @@
 
             <!-- Tabs Container -->
             <div class="flex bg-slate-100/80 p-1 m-4 rounded-xl gap-1 border border-slate-200/50">
-                <button id="tab-direction" type="button" class="flex-1 py-2 text-center text-sm font-semibold rounded-lg bg-white text-blue-600 shadow-sm transition-all duration-200 focus:outline-none cursor-pointer">
-                    Direction
-                </button>
-                <button id="tab-polyline" type="button" class="flex-1 py-2 text-center text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 transition-all duration-200 focus:outline-none cursor-pointer">
+                <button id="tab-polyline" type="button" class="flex-1 py-2 text-center text-sm font-semibold rounded-lg bg-white text-blue-600 shadow-sm transition-all duration-200 focus:outline-none cursor-pointer">
                     Polyline
+                </button>
+                <button id="tab-direction" type="button" class="flex-1 py-2 text-center text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 transition-all duration-200 focus:outline-none cursor-pointer">
+                    Direction
                 </button>
             </div>
 
             <!-- Tab Contents -->
             <div class="flex-1 overflow-y-auto min-h-0">
                 <!-- Direction Content -->
-                <div id="content-direction" class="space-y-4 p-5 transition-opacity duration-300">
+                <div id="content-direction" class="space-y-4 p-5 hidden transition-opacity duration-300">
                     <div class="space-y-1.5">
                         <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Origin</label>
                         <div class="relative flex items-center">
@@ -74,12 +74,12 @@
                 </div>
 
                 <!-- Polyline Content -->
-                <div id="content-polyline" class="space-y-4 p-5 hidden transition-opacity duration-300">
+                <div id="content-polyline" class="space-y-4 p-5 transition-opacity duration-300">
                     <div class="space-y-1.5">
                         <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Coordinates List</label>
-                        <textarea id="polyline-coords" rows="8" class="w-full rounded-xl border border-slate-200 px-3.5 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none font-mono leading-relaxed" placeholder="lat,lng|lat,lng|..."></textarea>
+                        <textarea id="polyline-coords" rows="8" class="w-full rounded-xl border border-slate-200 px-3.5 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none font-mono leading-relaxed" placeholder="lat,lng|lat,lng|... or JSON [{'x':lat,'y':lng}]"></textarea>
                         <p class="text-[11px] text-slate-400 leading-normal">
-                            <span class="font-semibold">Format:</span> lat,lng|lat,lng... or separate lines. Click directly on the map to add coordinates automatically.
+                            <span class="font-semibold">Format:</span> lat,lng|lat,lng... or JSON [{"x":lat,"y":lng}]. Click directly on the map to add coordinates automatically.
                         </p>
                     </div>
                     <button id="btn_draw" type="button" class="w-full rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-100 transition hover:bg-emerald-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer flex items-center justify-center gap-2">
