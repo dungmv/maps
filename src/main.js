@@ -8,11 +8,14 @@ import L, {
   Popup,
   LatLng,
   Polyline,
+  CircleMarker,
   Control,
 } from "leaflet";
 
 /** @type {Polyline} */
 let polylineTracking = null;
+/** @type {CircleMarker[]} */
+let pointMarkers = [];
 const loading = document.getElementById("loading");
 
 const map = new Map("map", {
@@ -122,6 +125,8 @@ function clearMap() {
   endMarker.remove();
   if (polylineTracking) polylineTracking.remove();
   polylineTracking = null;
+  pointMarkers.forEach((marker) => marker.remove());
+  pointMarkers = [];
   map.closePopup();
 }
 
@@ -396,6 +401,85 @@ document.getElementById("btn_search").addEventListener("click", function () {
     .finally(() => {
       loading.style.display = "none";
     });
+});
+
+// Point drawing listener
+document.getElementById("btn_draw_point").addEventListener("click", function () {
+  const coordsInput = document.getElementById("polyline-coords").value.trim();
+  if (!coordsInput) {
+    alert("Vui lÃ²ng nháº­p danh sÃ¡ch toáº¡ Ä‘á»™!");
+    return;
+  }
+
+  const points = parseCoordinates(coordsInput);
+
+  if (points.length < 1) {
+    alert("Vui lÃ²ng nháº­p Ã­t nháº¥t 1 toáº¡ Ä‘á»™ há»£p lá»‡ (Ä‘á»‹nh dáº¡ng: lat,lng|lat,lng... hoáº·c JSON [{\"x\":lat,\"y\":lng}])");
+    return;
+  }
+
+  clearMap();
+
+  pointMarkers = points.map((point, index) => {
+    const circle = new CircleMarker(point, {
+      radius: 11,
+      color: "#2563eb",
+      weight: 2,
+      opacity: 1,
+      fillColor: "#60a5fa",
+      fillOpacity: 0.85,
+    });
+    circle.bindPopup(`Point ${index + 1}<br>${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}`);
+    circle.bindTooltip(String(index + 1), {
+      permanent: true,
+      direction: "center",
+      className: "point-circle-label",
+      opacity: 1,
+    });
+    circle.addTo(map);
+    return circle;
+  });
+
+  let totalDistanceM = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    totalDistanceM += points[i].distanceTo(points[i + 1]);
+  }
+  const distanceText = `${(totalDistanceM / 1000).toFixed(2)} km`;
+
+  if (points.length === 1) {
+    map.setView(points[0], Math.max(map.getZoom(), 15));
+  } else {
+    map.fitBounds(points);
+  }
+
+  const routesDiv = document.getElementById("routes");
+  routesDiv.innerHTML = `
+    <div class="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-2">
+      <div class="flex items-center gap-1.5">
+        <span class="material-icons text-blue-600 text-base">add_location</span>
+        <h3 class="text-xs font-bold text-slate-900">Point</h3>
+      </div>
+      <button id="close-routes" type="button" class="text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md p-0.5 transition cursor-pointer flex items-center justify-center">
+        <span class="material-icons text-sm">close</span>
+      </button>
+    </div>
+    <div class="grid grid-cols-2 gap-2 text-[11px]">
+      <div class="flex flex-col bg-slate-50/60 p-1.5 rounded-lg border border-slate-100">
+        <span class="text-slate-400 font-medium leading-none">Points</span>
+        <span class="text-slate-800 font-bold mt-1">${points.length}</span>
+      </div>
+      <div class="flex flex-col bg-slate-50/60 p-1.5 rounded-lg border border-slate-100">
+        <span class="text-slate-400 font-medium leading-none">Distance</span>
+        <span class="text-blue-600 font-bold mt-1">${distanceText}</span>
+      </div>
+    </div>
+  `;
+  routesDiv.style.display = "block";
+
+  document.getElementById("close-routes").addEventListener("click", () => {
+    routesDiv.style.display = "none";
+    clearMap();
+  });
 });
 
 // Polyline drawing listener

@@ -82,10 +82,16 @@
                             <span class="font-semibold">Format:</span> lat,lng|lat,lng... or JSON [{"x":lat,"y":lng}]. Click directly on the map to add coordinates automatically.
                         </p>
                     </div>
-                    <button id="btn_draw" type="button" class="w-full rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-100 transition hover:bg-emerald-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer flex items-center justify-center gap-2">
-                        <span class="material-icons text-base">gesture</span>
-                        <span>Draw Polyline</span>
-                    </button>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="btn_draw_point" type="button" class="rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white shadow-md shadow-blue-100 transition hover:bg-blue-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer flex items-center justify-center gap-2">
+                            <span class="material-icons text-base">add_location</span>
+                            <span>Draw Point</span>
+                        </button>
+                        <button id="btn_draw" type="button" class="rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-100 transition hover:bg-emerald-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer flex items-center justify-center gap-2">
+                            <span class="material-icons text-base">gesture</span>
+                            <span>Draw Polyline</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </aside>
