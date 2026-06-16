@@ -1,20 +1,20 @@
 import "./style.css";
 import "leaflet/dist/leaflet.css";
 import { decode } from "@googlemaps/polyline-codec";
-import L, {
+import {
   Map,
   TileLayer,
   Marker,
   Popup,
   LatLng,
   Polyline,
-  CircleMarker,
+  DivIcon,
   Control,
 } from "leaflet";
 
 /** @type {Polyline} */
 let polylineTracking = null;
-/** @type {CircleMarker[]} */
+/** @type {Marker[]} */
 let pointMarkers = [];
 const loading = document.getElementById("loading");
 
@@ -421,23 +421,18 @@ document.getElementById("btn_draw_point").addEventListener("click", function () 
   clearMap();
 
   pointMarkers = points.map((point, index) => {
-    const circle = new CircleMarker(point, {
-      radius: 11,
-      color: "#2563eb",
-      weight: 2,
-      opacity: 1,
-      fillColor: "#60a5fa",
-      fillOpacity: 0.85,
+    const marker = new Marker(point, {
+      icon: new DivIcon({
+        className: "point-circle-marker",
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
+        html: String(index + 1),
+      }),
     });
-    circle.bindPopup(`Point ${index + 1}<br>${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}`);
-    circle.bindTooltip(String(index + 1), {
-      permanent: true,
-      direction: "center",
-      className: "point-circle-label",
-      opacity: 1,
-    });
-    circle.addTo(map);
-    return circle;
+
+    marker.bindPopup(`Point ${index + 1}<br>${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}`);
+    marker.addTo(map);
+    return marker;
   });
 
   let totalDistanceM = 0;
