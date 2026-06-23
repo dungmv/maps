@@ -1,6 +1,6 @@
 # Map Tracking - Route & Polyline Visualizer
 
-An interactive map application designed to visualize routes (Directions) and draw custom connected coordinates (Polylines) directly on a Leaflet map.
+An interactive map application designed to visualize routes (Directions) and draw custom connected coordinates (Polylines) directly on a MapLibre GL JS map.
 
 ---
 

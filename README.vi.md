@@ -1,6 +1,6 @@
 # Map Tracking - Route & Polyline Visualizer
 
-Ứng dụng bản đồ tương tác giúp trực quan hóa tuyến đường đi (Direction) và vẽ đường nối tọa độ tùy chỉnh (Polyline) trực tiếp trên nền bản đồ Leaflet.
+Ứng dụng bản đồ tương tác giúp trực quan hóa tuyến đường đi (Direction) và vẽ đường nối tọa độ tùy chỉnh (Polyline) trực tiếp trên nền bản đồ MapLibre GL JS.
 
 ---
 

@@ -1,40 +1,31 @@
 import "./style.css";
-import "leaflet/dist/leaflet.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { decode } from "@googlemaps/polyline-codec";
-import {
-  Map,
-  TileLayer,
-  Marker,
-  Popup,
-  LatLng,
-  Polyline,
-  DivIcon,
-  Control,
-} from "leaflet";
+import maplibregl from "maplibre-gl";
 
-/** @type {Polyline} */
-let polylineTracking = null;
-/** @type {Marker[]} */
-let pointMarkers = [];
 const loading = document.getElementById("loading");
 
-const map = new Map("map", {
+const map = new maplibregl.Map({
+  container: "map",
   zoom: 15,
-  center: [21.036809, 105.782771],
-  zoomControl: false,
+  center: [105.782771, 21.036809], // [lng, lat]
+  style: "https://api.maptiler.com/maps/streets-v4/style.json?key=LNu5oxyjvsY5rNpPpzTR",
+  attributionControl: true,
 });
-const tl = new TileLayer(
-  "https://tile.openstreetmap.org/{z}/{x}/{y}.png?{foo}",
-  { foo: "bar" },
+
+// Add zoom control (in the bottom-left corner, matching original Leaflet layout)
+map.addControl(
+  new maplibregl.NavigationControl({ showCompass: false }),
+  "bottom-left",
 );
-tl.addTo(map);
 
-const cz = new Control.Zoom({ position: "bottomleft" });
-cz.addTo(map);
+const startMarker = new maplibregl.Marker({ color: "#2563eb" }); // Blue
+const endMarker = new maplibregl.Marker({ color: "#ef4444" }); // Red
+const infoWindow = new maplibregl.Popup({ closeOnClick: false });
 
-const startMarker = new Marker({ lat: 21.029245, lng: 105.777964 });
-const endMarker = new Marker({ lat: 21.036809, lng: 105.782771 });
-const infoWindow = new Popup({interactive: true});
+/** @type {maplibregl.Marker[]} */
+let pointMarkers = [];
+
 const durationFormatter = new Intl.DurationFormat("en", {
   style: "long",
   units: ["hour", "minute", "second"],
@@ -43,6 +34,31 @@ const durationFormatter = new Intl.DurationFormat("en", {
 const sidebar = document.getElementById("sidebar");
 const sidebarToggle = document.getElementById("sidebar-toggle");
 const sidebarToggleIcon = sidebarToggle.querySelector(".material-icons");
+
+let isStartAdded = false;
+let isEndAdded = false;
+let activeTab = "polyline";
+
+// Listeners for marker clicks to remove them (direction mode only)
+startMarker.getElement().addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (activeTab === "direction") {
+    startMarker.remove();
+    isStartAdded = false;
+    const input = document.getElementById("origin");
+    if (input) input.value = "";
+  }
+});
+
+endMarker.getElement().addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (activeTab === "direction") {
+    endMarker.remove();
+    isEndAdded = false;
+    const input = document.getElementById("destination");
+    if (input) input.value = "";
+  }
+});
 
 function updateSidebarButton(isOpen) {
   sidebarToggleIcon.textContent = isOpen ? "chevron_left" : "menu";
@@ -97,47 +113,108 @@ function summarizeRoute(route) {
   };
 }
 
-function drawTracking(encodedPolyline, startPoint, endPoint, distance) {
+// Calculate distance in meters between two coordinates [lng, lat] using Haversine formula
+function distance(coord1, coord2) {
+  const R = 6371000; // Earth radius in meters
+  const lat1 = coord1[1];
+  const lon1 = coord1[0];
+  const lat2 = coord2[1];
+  const lon2 = coord2[0];
+
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function drawTracking(encodedPolyline, startPoint, endPoint, distanceVal) {
   clearMap();
-  startMarker.setLatLng(startPoint).addTo(map);
-  endMarker.setLatLng(endPoint).addTo(map);
+  startMarker.setLngLat([startPoint.lng, startPoint.lat]).addTo(map);
+  isStartAdded = true;
+  endMarker.setLngLat([endPoint.lng, endPoint.lat]).addTo(map);
+  isEndAdded = true;
 
   // Decode the polyline
   const decodedPath = decode(encodedPolyline);
-  polylineTracking = new Polyline(decodedPath, { color: "blue" });
-  polylineTracking.addTo(map);
+  const coordinates = decodedPath.map(([lat, lng]) => [lng, lat]);
 
-  // set center map
-  const centerPoint = new LatLng(
-    parseFloat((startPoint.lat + endPoint.lat) / 2),
-    parseFloat((startPoint.lng + endPoint.lng) / 2),
-  );
+  if (map.getSource("route")) {
+    map.getSource("route").setData({
+      type: "Feature",
+      properties: {},
+      geometry: {
+        type: "LineString",
+        coordinates: coordinates,
+      },
+    });
+  } else {
+    map.addSource("route", {
+      type: "geojson",
+      data: {
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "LineString",
+          coordinates: coordinates,
+        },
+      },
+    });
+    map.addLayer({
+      id: "route",
+      type: "line",
+      source: "route",
+      layout: {
+        "line-join": "round",
+        "line-cap": "round",
+      },
+      paint: {
+        "line-color": "#2563eb",
+        "line-width": 5,
+        "line-opacity": 0.8,
+      },
+    });
+  }
 
-  map.fitBounds(polylineTracking.getBounds());
+  // Zoom to fit bounds
+  const bounds = new maplibregl.LngLatBounds();
+  coordinates.forEach((coord) => bounds.extend(coord));
+  map.fitBounds(bounds, { padding: 50 });
 
-  infoWindow.setContent(distance);
-  infoWindow.setLatLng(centerPoint);
-  infoWindow.openOn(map);
+  // Add details info popup
+  const centerLng = (startPoint.lng + endPoint.lng) / 2;
+  const centerLat = (startPoint.lat + endPoint.lat) / 2;
+  infoWindow.setHTML(distanceVal).setLngLat([centerLng, centerLat]).addTo(map);
 }
 
 function clearMap() {
   startMarker.remove();
+  isStartAdded = false;
   endMarker.remove();
-  if (polylineTracking) polylineTracking.remove();
-  polylineTracking = null;
+  isEndAdded = false;
+
+  if (map.getLayer("route")) map.removeLayer("route");
+  if (map.getSource("route")) map.removeSource("route");
+
+  infoWindow.remove();
+
   pointMarkers.forEach((marker) => marker.remove());
   pointMarkers = [];
-  map.closePopup();
 }
 
 /**
  *
  * @param {string} point
- * @returns
+ * @returns {{lat: number, lng: number}}
  */
 function toLatLng(point) {
   const latlng = point.split(",");
-  return new LatLng(parseFloat(latlng[0]), parseFloat(latlng[1]));
+  return { lat: parseFloat(latlng[0]), lng: parseFloat(latlng[1]) };
 }
 
 function parseCoordinates(coordsInput) {
@@ -153,15 +230,15 @@ function parseCoordinates(coordsInput) {
           .replace(/'/g, '"');
         parsed = JSON.parse(jsonStyle);
       }
-      
+
       if (Array.isArray(parsed)) {
         const path = [];
         for (const item of parsed) {
-          if (item && typeof item === 'object') {
+          if (item && typeof item === "object") {
             const lat = parseFloat(item.x !== undefined ? item.x : item.lat);
             const lng = parseFloat(item.y !== undefined ? item.y : item.lng);
             if (!isNaN(lat) && !isNaN(lng)) {
-              path.push(new LatLng(lat, lng));
+              path.push({ lat, lng });
             }
           }
         }
@@ -172,9 +249,12 @@ function parseCoordinates(coordsInput) {
     }
   }
 
-  const points = trimmed.split(/[|\n]+/).map(p => p.trim()).filter(Boolean);
+  const points = trimmed
+    .split(/[|\n]+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
   const path = [];
-  
+
   for (const p of points) {
     if (p.startsWith("{") && p.endsWith("}")) {
       try {
@@ -185,7 +265,7 @@ function parseCoordinates(coordsInput) {
         const lat = parseFloat(item.x !== undefined ? item.x : item.lat);
         const lng = parseFloat(item.y !== undefined ? item.y : item.lng);
         if (!isNaN(lat) && !isNaN(lng)) {
-          path.push(new LatLng(lat, lng));
+          path.push({ lat, lng });
           continue;
         }
       } catch (e) {
@@ -198,18 +278,18 @@ function parseCoordinates(coordsInput) {
       const lat = parseFloat(parts[0].trim());
       const lng = parseFloat(parts[1].trim());
       if (!isNaN(lat) && !isNaN(lng)) {
-        path.push(new LatLng(lat, lng));
+        path.push({ lat, lng });
       }
     }
   }
-  
+
   return path;
 }
 
 function appendCoordinateToInput(textarea, lat, lng) {
   const val = textarea.value.trim();
   const formattedCoord = `${lat.toFixed(6)},${lng.toFixed(6)}`;
-  
+
   if (!val) {
     textarea.value = formattedCoord;
     return;
@@ -234,11 +314,14 @@ function appendCoordinateToInput(textarea, lat, lng) {
             useXY = false;
           }
         }
-        
-        const newItem = useXY 
+
+        const newItem = useXY
           ? { x: parseFloat(lat.toFixed(6)), y: parseFloat(lng.toFixed(6)) }
-          : { lat: parseFloat(lat.toFixed(6)), lng: parseFloat(lng.toFixed(6)) };
-        
+          : {
+              lat: parseFloat(lat.toFixed(6)),
+              lng: parseFloat(lng.toFixed(6)),
+            };
+
         parsed.push(newItem);
         textarea.value = JSON.stringify(parsed, null, 2);
         return;
@@ -259,9 +342,6 @@ function appendCoordinateToInput(textarea, lat, lng) {
   }
 }
 
-// Active Tab State
-let activeTab = "polyline";
-
 const tabDirection = document.getElementById("tab-direction");
 const tabPolyline = document.getElementById("tab-polyline");
 const contentDirection = document.getElementById("content-direction");
@@ -270,27 +350,57 @@ const contentPolyline = document.getElementById("content-polyline");
 function switchTab(tab) {
   activeTab = tab;
   if (tab === "direction") {
-    // Direction Tab Button Active Styles
-    tabDirection.classList.add("bg-white", "text-blue-600", "shadow-sm", "font-semibold");
-    tabDirection.classList.remove("text-slate-600", "hover:text-slate-900", "font-medium");
-    
-    // Polyline Tab Button Inactive Styles
-    tabPolyline.classList.remove("bg-white", "text-blue-600", "shadow-sm", "font-semibold");
-    tabPolyline.classList.add("text-slate-600", "hover:text-slate-900", "font-medium");
-    
-    // Show/Hide Content
+    tabDirection.classList.add(
+      "bg-white",
+      "text-blue-600",
+      "shadow-sm",
+      "font-semibold",
+    );
+    tabDirection.classList.remove(
+      "text-slate-600",
+      "hover:text-slate-900",
+      "font-medium",
+    );
+
+    tabPolyline.classList.remove(
+      "bg-white",
+      "text-blue-600",
+      "shadow-sm",
+      "font-semibold",
+    );
+    tabPolyline.classList.add(
+      "text-slate-600",
+      "hover:text-slate-900",
+      "font-medium",
+    );
+
     contentDirection.classList.remove("hidden");
     contentPolyline.classList.add("hidden");
   } else {
-    // Polyline Tab Button Active Styles
-    tabPolyline.classList.add("bg-white", "text-blue-600", "shadow-sm", "font-semibold");
-    tabPolyline.classList.remove("text-slate-600", "hover:text-slate-900", "font-medium");
-    
-    // Direction Tab Button Inactive Styles
-    tabDirection.classList.remove("bg-white", "text-blue-600", "shadow-sm", "font-semibold");
-    tabDirection.classList.add("text-slate-600", "hover:text-slate-900", "font-medium");
-    
-    // Show/Hide Content
+    tabPolyline.classList.add(
+      "bg-white",
+      "text-blue-600",
+      "shadow-sm",
+      "font-semibold",
+    );
+    tabPolyline.classList.remove(
+      "text-slate-600",
+      "hover:text-slate-900",
+      "font-medium",
+    );
+
+    tabDirection.classList.remove(
+      "bg-white",
+      "text-blue-600",
+      "shadow-sm",
+      "font-semibold",
+    );
+    tabDirection.classList.add(
+      "text-slate-600",
+      "hover:text-slate-900",
+      "font-medium",
+    );
+
     contentPolyline.classList.remove("hidden");
     contentDirection.classList.add("hidden");
   }
@@ -304,8 +414,12 @@ document.getElementById("btn_search").addEventListener("click", function () {
   loading.style.display = "flex";
   const mapUrl = document.getElementById("map-url").value;
   const origin = document.getElementById("origin").value.replace(/\s+/g, "");
-  const waypoints = document.getElementById("waypoints").value.replace(/\s+/g, "");
-  const destination = document.getElementById("destination").value.replace(/\s+/g, "");
+  const waypoints = document
+    .getElementById("waypoints")
+    .value.replace(/\s+/g, "");
+  const destination = document
+    .getElementById("destination")
+    .value.replace(/\s+/g, "");
 
   const url = new URL(`${mapUrl}/maps/api/directions/json`);
   url.searchParams.append("origin", origin);
@@ -327,11 +441,11 @@ document.getElementById("btn_search").addEventListener("click", function () {
       const endPoint = toLatLng(destination);
 
       const polyline = response.routes[0].overview_polyline.points;
-      const distance = response.routes[0].legs[0].distance.text;
-      drawTracking(polyline, startPoint, endPoint, distance);
+      const distanceVal = response.routes[0].legs[0].distance.text;
+      drawTracking(polyline, startPoint, endPoint, distanceVal);
+
       // render route choices into #routes
       const routesDiv = document.getElementById("routes");
-      // clear previous entries and inject header with close button
       routesDiv.innerHTML = `
         <div class="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-2">
           <div class="flex items-center gap-1.5">
@@ -362,13 +476,14 @@ document.getElementById("btn_search").addEventListener("click", function () {
         input.id = id;
         input.name = "route";
         input.value = idx;
-        input.className = "w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 border-slate-300";
-        if (idx === 0) input.checked = true; // default first
+        input.className =
+          "w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 border-slate-300";
+        if (idx === 0) input.checked = true;
 
         const label = document.createElement("label");
         label.htmlFor = id;
-        label.className = "text-[11px] font-medium text-slate-700 cursor-pointer hover:text-slate-900 leading-tight";
-        // use route.summary if available, otherwise fall back to index
+        label.className =
+          "text-[11px] font-medium text-slate-700 cursor-pointer hover:text-slate-900 leading-tight";
         const summary = summarizeRoute(route);
         label.textContent =
           `${route.summary} | ${summary.totalDistanceText}, ${summary.totalDurationText}` ||
@@ -378,7 +493,6 @@ document.getElementById("btn_search").addEventListener("click", function () {
         wrapper.appendChild(label);
         routesList.appendChild(wrapper);
 
-        // when radio selection changes, redraw that route
         input.addEventListener("change", () => {
           if (input.checked) {
             const poly =
@@ -404,51 +518,63 @@ document.getElementById("btn_search").addEventListener("click", function () {
 });
 
 // Point drawing listener
-document.getElementById("btn_draw_point").addEventListener("click", function () {
-  const coordsInput = document.getElementById("polyline-coords").value.trim();
-  if (!coordsInput) {
-    alert("Vui lÃ²ng nháº­p danh sÃ¡ch toáº¡ Ä‘á»™!");
-    return;
-  }
+document
+  .getElementById("btn_draw_point")
+  .addEventListener("click", function () {
+    const coordsInput = document.getElementById("polyline-coords").value.trim();
+    if (!coordsInput) {
+      alert("Vui lòng nhập danh sách toạ độ!");
+      return;
+    }
 
-  const points = parseCoordinates(coordsInput);
+    const points = parseCoordinates(coordsInput);
 
-  if (points.length < 1) {
-    alert("Vui lÃ²ng nháº­p Ã­t nháº¥t 1 toáº¡ Ä‘á»™ há»£p lá»‡ (Ä‘á»‹nh dáº¡ng: lat,lng|lat,lng... hoáº·c JSON [{\"x\":lat,\"y\":lng}])");
-    return;
-  }
+    if (points.length < 1) {
+      alert(
+        'Vui lòng nhập ít nhất 1 toạ độ hợp lệ (định dạng: lat,lng|lat,lng... hoặc JSON [{"x":lat,"y":lng}])',
+      );
+      return;
+    }
 
-  clearMap();
+    clearMap();
 
-  pointMarkers = points.map((point, index) => {
-    const marker = new Marker(point, {
-      icon: new DivIcon({
-        className: "point-circle-marker",
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
-        html: String(index + 1),
-      }),
+    pointMarkers = points.map((point, index) => {
+      const el = document.createElement("div");
+      el.className = "point-circle-marker";
+      el.innerHTML = String(index + 1);
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([point.lng, point.lat])
+        .setPopup(
+          new maplibregl.Popup({ offset: 25 }).setHTML(
+            `Point ${index + 1}<br>${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}`,
+          ),
+        )
+        .addTo(map);
+
+      return marker;
     });
 
-    marker.bindPopup(`Point ${index + 1}<br>${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}`);
-    marker.addTo(map);
-    return marker;
-  });
+    let totalDistanceM = 0;
+    for (let i = 0; i < points.length - 1; i++) {
+      totalDistanceM += distance(
+        [points[i].lng, points[i].lat],
+        [points[i + 1].lng, points[i + 1].lat],
+      );
+    }
+    const distanceText = `${(totalDistanceM / 1000).toFixed(2)} km`;
 
-  let totalDistanceM = 0;
-  for (let i = 0; i < points.length - 1; i++) {
-    totalDistanceM += points[i].distanceTo(points[i + 1]);
-  }
-  const distanceText = `${(totalDistanceM / 1000).toFixed(2)} km`;
+    if (points.length === 1) {
+      map.setCenter([points[0].lng, points[0].lat]);
+      map.setZoom(Math.max(map.getZoom(), 15));
+    } else {
+      const bounds = new maplibregl.LngLatBounds();
+      points.forEach((p) => bounds.extend([p.lng, p.lat]));
+      map.fitBounds(bounds, { padding: 50 });
+    }
 
-  if (points.length === 1) {
-    map.setView(points[0], Math.max(map.getZoom(), 15));
-  } else {
-    map.fitBounds(points);
-  }
-
-  const routesDiv = document.getElementById("routes");
-  routesDiv.innerHTML = `
+    const routesDiv = document.getElementById("routes");
+    routesDiv.innerHTML = `
     <div class="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-2">
       <div class="flex items-center gap-1.5">
         <span class="material-icons text-blue-600 text-base">add_location</span>
@@ -469,13 +595,13 @@ document.getElementById("btn_draw_point").addEventListener("click", function () 
       </div>
     </div>
   `;
-  routesDiv.style.display = "block";
+    routesDiv.style.display = "block";
 
-  document.getElementById("close-routes").addEventListener("click", () => {
-    routesDiv.style.display = "none";
-    clearMap();
+    document.getElementById("close-routes").addEventListener("click", () => {
+      routesDiv.style.display = "none";
+      clearMap();
+    });
   });
-});
 
 // Polyline drawing listener
 document.getElementById("btn_draw").addEventListener("click", function () {
@@ -488,7 +614,9 @@ document.getElementById("btn_draw").addEventListener("click", function () {
   const path = parseCoordinates(coordsInput);
 
   if (path.length < 2) {
-    alert("Vui lòng nhập ít nhất 2 toạ độ hợp lệ (định dạng: lat,lng|lat,lng... hoặc JSON [{\"x\":lat,\"y\":lng}])");
+    alert(
+      'Vui lòng nhập ít nhất 2 toạ độ hợp lệ (định dạng: lat,lng|lat,lng... hoặc JSON [{"x":lat,"y":lng}])',
+    );
     return;
   }
 
@@ -497,21 +625,63 @@ document.getElementById("btn_draw").addEventListener("click", function () {
   const startPoint = path[0];
   const endPoint = path[path.length - 1];
 
-  startMarker.setLatLng(startPoint).addTo(map);
-  endMarker.setLatLng(endPoint).addTo(map);
+  startMarker.setLngLat([startPoint.lng, startPoint.lat]).addTo(map);
+  isStartAdded = true;
+  endMarker.setLngLat([endPoint.lng, endPoint.lat]).addTo(map);
+  isEndAdded = true;
 
-  polylineTracking = new Polyline(path, { color: "#2563eb", weight: 5, opacity: 0.8 });
-  polylineTracking.addTo(map);
+  const coordinates = path.map((p) => [p.lng, p.lat]);
+
+  if (map.getSource("route")) {
+    map.getSource("route").setData({
+      type: "Feature",
+      properties: {},
+      geometry: {
+        type: "LineString",
+        coordinates: coordinates,
+      },
+    });
+  } else {
+    map.addSource("route", {
+      type: "geojson",
+      data: {
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "LineString",
+          coordinates: coordinates,
+        },
+      },
+    });
+    map.addLayer({
+      id: "route",
+      type: "line",
+      source: "route",
+      layout: {
+        "line-join": "round",
+        "line-cap": "round",
+      },
+      paint: {
+        "line-color": "#2563eb",
+        "line-width": 5,
+        "line-opacity": 0.8,
+      },
+    });
+  }
 
   // Calculate total distance dynamically
   let totalDistanceM = 0;
   for (let i = 0; i < path.length - 1; i++) {
-    totalDistanceM += path[i].distanceTo(path[i + 1]);
+    totalDistanceM += distance(
+      [path[i].lng, path[i].lat],
+      [path[i + 1].lng, path[i + 1].lat],
+    );
   }
   const distanceText = `${(totalDistanceM / 1000).toFixed(2)} km`;
 
-  const bounds = polylineTracking.getBounds();
-  map.fitBounds(bounds);
+  const bounds = new maplibregl.LngLatBounds();
+  coordinates.forEach((coord) => bounds.extend(coord));
+  map.fitBounds(bounds, { padding: 50 });
 
   // Show details in #routes panel with close button
   const routesDiv = document.getElementById("routes");
@@ -546,27 +716,25 @@ document.getElementById("btn_draw").addEventListener("click", function () {
 
 // Map click listener
 map.on("click", function (event) {
-  const { lat, lng } = event.latlng;
-  
+  const { lng, lat } = event.lngLat;
+
   if (activeTab === "direction") {
     let marker = null;
     let input = null;
-    
-    if (!startMarker._map) {
+
+    if (!isStartAdded) {
       marker = startMarker;
       input = document.getElementById("origin");
-    } else if (!endMarker._map) {
+      isStartAdded = true;
+    } else if (!isEndAdded) {
       marker = endMarker;
       input = document.getElementById("destination");
+      isEndAdded = true;
     }
 
     if (marker) {
-      marker.setLatLng(event.latlng).addTo(map);
+      marker.setLngLat([lng, lat]).addTo(map);
       input.value = `${lat.toFixed(6)},${lng.toFixed(6)}`;
-      marker.on("click", function () {
-        marker.remove();
-        input.value = "";
-      });
     }
   } else if (activeTab === "polyline") {
     const textarea = document.getElementById("polyline-coords");
@@ -595,7 +763,6 @@ if (btnSettings && settingsModal && closeSettings && saveSettings) {
   closeSettings.addEventListener("click", closeModal);
   saveSettings.addEventListener("click", closeModal);
 
-  // Close modal when clicking outside of the modal dialog box
   settingsModal.addEventListener("click", (e) => {
     if (e.target === settingsModal) {
       closeModal();
