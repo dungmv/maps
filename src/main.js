@@ -1,6 +1,6 @@
 import "./style.css";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { decode } from "@googlemaps/polyline-codec";
+import { decode, encode } from "@googlemaps/polyline-codec";
 import maplibregl from "maplibre-gl";
 
 const loading = document.getElementById("loading");
@@ -217,9 +217,132 @@ function toLatLng(point) {
   return { lat: parseFloat(latlng[0]), lng: parseFloat(latlng[1]) };
 }
 
+let selectedFormat = "latlng"; // "latlng" | "json" | "polyline"
+let selectedPrecision = 5; // 5 | 6 | 7
+
+function updateFormatUI() {
+  const formatLatlngBtn = document.getElementById("format-latlng");
+  const formatJsonBtn = document.getElementById("format-json");
+  const formatPolylineBtn = document.getElementById("format-polyline");
+  const precisionContainer = document.getElementById("precision-option-container");
+  const textarea = document.getElementById("polyline-coords");
+  const hintEl = document.getElementById("polyline-format-hint");
+
+  const allFormatBtns = [formatLatlngBtn, formatJsonBtn, formatPolylineBtn];
+  allFormatBtns.forEach((btn) => {
+    if (btn) {
+      btn.className =
+        "format-btn flex-1 rounded-lg py-1.5 px-1 text-center transition-all duration-200 cursor-pointer hover:text-slate-900 text-slate-600 font-medium";
+    }
+  });
+
+  const activeBtnMap = {
+    latlng: formatLatlngBtn,
+    json: formatJsonBtn,
+    polyline: formatPolylineBtn,
+  };
+  const activeBtn = activeBtnMap[selectedFormat];
+  if (activeBtn) {
+    activeBtn.className =
+      "format-btn flex-1 rounded-lg py-1.5 px-1 text-center transition-all duration-200 cursor-pointer bg-white text-blue-600 font-semibold shadow-xs";
+  }
+
+  if (selectedFormat === "polyline") {
+    if (precisionContainer) {
+      precisionContainer.classList.remove("hidden");
+      precisionContainer.classList.add("flex");
+    }
+  } else {
+    if (precisionContainer) {
+      precisionContainer.classList.add("hidden");
+      precisionContainer.classList.remove("flex");
+    }
+  }
+
+  const precisionBtns = document.querySelectorAll(".precision-btn");
+  precisionBtns.forEach((btn) => {
+    const prec = parseInt(btn.getAttribute("data-precision"), 10);
+    if (prec === selectedPrecision) {
+      btn.className =
+        "precision-btn px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer bg-blue-600 text-white shadow-xs";
+    } else {
+      btn.className =
+        "precision-btn px-2.5 py-0.5 rounded-md text-[11px] font-medium text-slate-600 hover:text-slate-900 transition cursor-pointer";
+    }
+  });
+
+  if (textarea) {
+    if (selectedFormat === "latlng") {
+      textarea.placeholder = "21.036809,105.782771|21.037500,105.783500|...";
+      if (hintEl) {
+        hintEl.innerHTML = `<span class="font-semibold">Format:</span> lat,lng|lat,lng... Click directly on the map to add coordinates automatically.`;
+      }
+    } else if (selectedFormat === "json") {
+      textarea.placeholder = `[\n  {"lat": 21.036809, "lng": 105.782771},\n  {"lat": 21.037500, "lng": 105.783500}\n]`;
+      if (hintEl) {
+        hintEl.innerHTML = `<span class="font-semibold">Format:</span> JSON Array [{"lat":21.036,"lng":105.78}]. Click directly on the map to add coordinates.`;
+      }
+    } else if (selectedFormat === "polyline") {
+      textarea.placeholder = "_p~iF~ps|U_ulLnnqC_mqN...";
+      if (hintEl) {
+        hintEl.innerHTML = `<span class="font-semibold">Format:</span> Encoded Polyline (Precision ${selectedPrecision}). Click directly on the map to add coordinates.`;
+      }
+    }
+  }
+}
+
+// Attach format selection listeners
+document.querySelectorAll(".format-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const fmt = btn.getAttribute("data-format");
+    if (fmt && fmt !== selectedFormat) {
+      selectedFormat = fmt;
+      updateFormatUI();
+    }
+  });
+});
+
+// Attach precision option listeners
+document.querySelectorAll(".precision-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const prec = parseInt(btn.getAttribute("data-precision"), 10);
+    if (prec && prec !== selectedPrecision) {
+      const oldPrec = selectedPrecision;
+      selectedPrecision = prec;
+
+      const textarea = document.getElementById("polyline-coords");
+      const val = textarea ? textarea.value.trim() : "";
+      if (selectedFormat === "polyline" && val) {
+        try {
+          const decoded = decode(val, oldPrec);
+          if (Array.isArray(decoded) && decoded.length > 0) {
+            textarea.value = encode(decoded, selectedPrecision);
+          }
+        } catch (e) {
+          // Ignore auto-conversion if current string isn't valid for old precision
+        }
+      }
+      updateFormatUI();
+    }
+  });
+});
+
 function parseCoordinates(coordsInput) {
   const trimmed = coordsInput.trim();
-  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+  if (!trimmed) return [];
+
+  if (selectedFormat === "polyline") {
+    try {
+      const decodedPath = decode(trimmed, selectedPrecision);
+      if (Array.isArray(decodedPath) && decodedPath.length > 0) {
+        return decodedPath.map(([lat, lng]) => ({ lat, lng }));
+      }
+    } catch (e) {
+      console.error("Failed to decode polyline string:", e);
+      alert(`Polyline Encode không hợp lệ với Precision ${selectedPrecision}!`);
+      return [];
+    }
+  } else if (selectedFormat === "json") {
     try {
       let parsed = null;
       try {
@@ -235,8 +358,8 @@ function parseCoordinates(coordsInput) {
         const path = [];
         for (const item of parsed) {
           if (item && typeof item === "object") {
-            const lat = parseFloat(item.x !== undefined ? item.x : item.lat);
-            const lng = parseFloat(item.y !== undefined ? item.y : item.lng);
+            const lat = parseFloat(item.lat !== undefined ? item.lat : item.x);
+            const lng = parseFloat(item.lng !== undefined ? item.lng : item.y);
             if (!isNaN(lat) && !isNaN(lng)) {
               path.push({ lat, lng });
             }
@@ -247,55 +370,63 @@ function parseCoordinates(coordsInput) {
     } catch (e) {
       console.error("Failed to parse JSON coordinates:", e);
     }
-  }
+    alert('Dữ liệu JSON Array không hợp lệ! Ví dụ: [{"lat": 21.036, "lng": 105.78}]');
+    return [];
+  } else if (selectedFormat === "latlng") {
+    const points = trimmed
+      .split(/[|\n]+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    const path = [];
 
-  const points = trimmed
-    .split(/[|\n]+/)
-    .map((p) => p.trim())
-    .filter(Boolean);
-  const path = [];
-
-  for (const p of points) {
-    if (p.startsWith("{") && p.endsWith("}")) {
-      try {
-        const jsonStyle = p
-          .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
-          .replace(/'/g, '"');
-        const item = JSON.parse(jsonStyle);
-        const lat = parseFloat(item.x !== undefined ? item.x : item.lat);
-        const lng = parseFloat(item.y !== undefined ? item.y : item.lng);
+    for (const p of points) {
+      const parts = p.split(",");
+      if (parts.length === 2) {
+        const lat = parseFloat(parts[0].trim());
+        const lng = parseFloat(parts[1].trim());
         if (!isNaN(lat) && !isNaN(lng)) {
           path.push({ lat, lng });
-          continue;
         }
-      } catch (e) {
-        // ignore
       }
     }
-
-    const parts = p.split(",");
-    if (parts.length === 2) {
-      const lat = parseFloat(parts[0].trim());
-      const lng = parseFloat(parts[1].trim());
-      if (!isNaN(lat) && !isNaN(lng)) {
-        path.push({ lat, lng });
-      }
-    }
+    if (path.length > 0) return path;
+    alert("Dữ liệu lat,lng|lat,lng không hợp lệ!");
+    return [];
   }
 
-  return path;
+  return [];
 }
 
 function appendCoordinateToInput(textarea, lat, lng) {
   const val = textarea.value.trim();
-  const formattedCoord = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+  const formattedLat = parseFloat(lat.toFixed(6));
+  const formattedLng = parseFloat(lng.toFixed(6));
+  const formattedCoord = `${formattedLat},${formattedLng}`;
 
-  if (!val) {
-    textarea.value = formattedCoord;
-    return;
-  }
+  if (selectedFormat === "latlng") {
+    if (!val) {
+      textarea.value = formattedCoord;
+      return;
+    }
+    if (/[|\n]$/.test(val)) {
+      textarea.value = val + formattedCoord;
+    } else {
+      if (val.includes("\n")) {
+        textarea.value = val + "\n" + formattedCoord;
+      } else {
+        textarea.value = val + "|" + formattedCoord;
+      }
+    }
+  } else if (selectedFormat === "json") {
+    if (!val) {
+      textarea.value = JSON.stringify(
+        [{ lat: formattedLat, lng: formattedLng }],
+        null,
+        2
+      );
+      return;
+    }
 
-  if (val.startsWith("[") && val.endsWith("]")) {
     try {
       let parsed = null;
       try {
@@ -307,38 +438,42 @@ function appendCoordinateToInput(textarea, lat, lng) {
         parsed = JSON.parse(jsonStyle);
       }
       if (Array.isArray(parsed)) {
-        let useXY = true;
-        if (parsed.length > 0) {
-          const first = parsed[0];
-          if (first && (first.lat !== undefined || first.lng !== undefined)) {
-            useXY = false;
+        let useXY = false;
+        if (parsed.length > 0 && parsed[0]) {
+          if (parsed[0].x !== undefined || parsed[0].y !== undefined) {
+            useXY = true;
           }
         }
-
         const newItem = useXY
-          ? { x: parseFloat(lat.toFixed(6)), y: parseFloat(lng.toFixed(6)) }
-          : {
-              lat: parseFloat(lat.toFixed(6)),
-              lng: parseFloat(lng.toFixed(6)),
-            };
-
+          ? { x: formattedLat, y: formattedLng }
+          : { lat: formattedLat, lng: formattedLng };
         parsed.push(newItem);
         textarea.value = JSON.stringify(parsed, null, 2);
         return;
       }
     } catch (e) {
-      // ignore and fallback
+      // fallback
     }
-  }
 
-  if (/[|\n]$/.test(val)) {
-    textarea.value = val + formattedCoord;
-  } else {
-    if (val.includes("\n")) {
-      textarea.value = val + "\n" + formattedCoord;
-    } else {
-      textarea.value = val + "|" + formattedCoord;
+    textarea.value = JSON.stringify(
+      [{ lat: formattedLat, lng: formattedLng }],
+      null,
+      2
+    );
+  } else if (selectedFormat === "polyline") {
+    let coords = [];
+    if (val) {
+      try {
+        const decoded = decode(val, selectedPrecision);
+        if (Array.isArray(decoded)) {
+          coords = decoded;
+        }
+      } catch (e) {
+        // start new polyline
+      }
     }
+    coords.push([formattedLat, formattedLng]);
+    textarea.value = encode(coords, selectedPrecision);
   }
 }
 
@@ -530,9 +665,7 @@ document
     const points = parseCoordinates(coordsInput);
 
     if (points.length < 1) {
-      alert(
-        'Vui lòng nhập ít nhất 1 toạ độ hợp lệ (định dạng: lat,lng|lat,lng... hoặc JSON [{"x":lat,"y":lng}])',
-      );
+      alert("Vui lòng nhập ít nhất 1 toạ độ hợp lệ theo kiểu dữ liệu đã chọn!");
       return;
     }
 
@@ -614,9 +747,7 @@ document.getElementById("btn_draw").addEventListener("click", function () {
   const path = parseCoordinates(coordsInput);
 
   if (path.length < 2) {
-    alert(
-      'Vui lòng nhập ít nhất 2 toạ độ hợp lệ (định dạng: lat,lng|lat,lng... hoặc JSON [{"x":lat,"y":lng}])',
-    );
+    alert("Vui lòng nhập ít nhất 2 toạ độ hợp lệ theo kiểu dữ liệu đã chọn!");
     return;
   }
 
