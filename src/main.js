@@ -793,3 +793,178 @@ if (btnSettings && settingsModal && closeSettings && saveSettings) {
     }
   });
 }
+
+// Toast notification logic
+let toastTimeout = null;
+function showToast(message, isSuccess = true) {
+  const toast = document.getElementById("toast");
+  const toastMsg = document.getElementById("toast-message");
+  const toastIcon = document.getElementById("toast-icon");
+  if (!toast || !toastMsg || !toastIcon) return;
+
+  toastMsg.textContent = message;
+  if (isSuccess) {
+    toastIcon.textContent = "check_circle";
+    toastIcon.className = "material-icons text-emerald-400 text-base";
+  } else {
+    toastIcon.textContent = "error";
+    toastIcon.className = "material-icons text-rose-400 text-base";
+  }
+
+  toast.classList.remove("opacity-0", "translate-y-4", "pointer-events-none");
+  toast.classList.add("opacity-100", "translate-y-0");
+
+  if (toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    toast.classList.add("opacity-0", "translate-y-4", "pointer-events-none");
+    toast.classList.remove("opacity-100", "translate-y-0");
+  }, 2200);
+}
+
+// Copy to clipboard helper
+async function copyTextToClipboard(text) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+    showToast(`Đã sao chép: ${text}`);
+  } catch (err) {
+    console.error("Copy to clipboard failed: ", err);
+    showToast("Không thể sao chép vào clipboard", false);
+  }
+}
+
+// Right-click context menu logic
+let currentContextMenuCoord = null;
+const contextMenu = document.getElementById("map-context-menu");
+const contextCoordValue = document.getElementById("context-coord-value");
+
+function hideContextMenu() {
+  if (contextMenu && !contextMenu.classList.contains("hidden")) {
+    contextMenu.classList.add("hidden");
+  }
+}
+
+// Prevent browser context menu on map container
+map.getContainer().addEventListener("contextmenu", (e) => e.preventDefault());
+
+map.on("contextmenu", function (e) {
+  e.originalEvent.preventDefault();
+  const { lng, lat } = e.lngLat;
+  currentContextMenuCoord = { lat, lng };
+
+  const formattedLat = lat.toFixed(6);
+  const formattedLng = lng.toFixed(6);
+  if (contextCoordValue) {
+    contextCoordValue.textContent = `${formattedLat}, ${formattedLng}`;
+  }
+
+  if (contextMenu) {
+    contextMenu.classList.remove("hidden");
+
+    const x = e.originalEvent.clientX;
+    const y = e.originalEvent.clientY;
+
+    const menuWidth = 220;
+    const menuHeight = 220;
+
+    let left = x;
+    let top = y;
+
+    if (left + menuWidth > window.innerWidth - 8) {
+      left = window.innerWidth - menuWidth - 8;
+    }
+    if (top + menuHeight > window.innerHeight - 8) {
+      top = window.innerHeight - menuHeight - 8;
+    }
+
+    contextMenu.style.left = `${left}px`;
+    contextMenu.style.top = `${top}px`;
+  }
+});
+
+// Close context menu on external events
+document.addEventListener("click", function (e) {
+  if (contextMenu && !contextMenu.contains(e.target)) {
+    hideContextMenu();
+  }
+});
+
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape") {
+    hideContextMenu();
+  }
+});
+
+map.on("movestart", hideContextMenu);
+map.on("zoomstart", hideContextMenu);
+
+// Context menu item actions
+document.getElementById("context-coord-display")?.addEventListener("click", () => {
+  if (!currentContextMenuCoord) return;
+  const { lat, lng } = currentContextMenuCoord;
+  copyTextToClipboard(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+  hideContextMenu();
+});
+
+document.getElementById("ctx-copy-latlng")?.addEventListener("click", () => {
+  if (!currentContextMenuCoord) return;
+  const { lat, lng } = currentContextMenuCoord;
+  copyTextToClipboard(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+  hideContextMenu();
+});
+
+document.getElementById("ctx-copy-lnglat")?.addEventListener("click", () => {
+  if (!currentContextMenuCoord) return;
+  const { lat, lng } = currentContextMenuCoord;
+  copyTextToClipboard(`${lng.toFixed(6)}, ${lat.toFixed(6)}`);
+  hideContextMenu();
+});
+
+document.getElementById("ctx-copy-json")?.addEventListener("click", () => {
+  if (!currentContextMenuCoord) return;
+  const { lat, lng } = currentContextMenuCoord;
+  const jsonStr = JSON.stringify({
+    lat: parseFloat(lat.toFixed(6)),
+    lng: parseFloat(lng.toFixed(6)),
+  });
+  copyTextToClipboard(jsonStr);
+  hideContextMenu();
+});
+
+document.getElementById("ctx-set-origin")?.addEventListener("click", () => {
+  if (!currentContextMenuCoord) return;
+  const { lat, lng } = currentContextMenuCoord;
+  if (activeTab !== "direction") {
+    switchTab("direction");
+  }
+  startMarker.setLngLat([lng, lat]).addTo(map);
+  const input = document.getElementById("origin");
+  if (input) input.value = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+  isStartAdded = true;
+  showToast("Đã đặt làm Điểm xuất phát");
+  hideContextMenu();
+});
+
+document.getElementById("ctx-set-destination")?.addEventListener("click", () => {
+  if (!currentContextMenuCoord) return;
+  const { lat, lng } = currentContextMenuCoord;
+  if (activeTab !== "direction") {
+    switchTab("direction");
+  }
+  endMarker.setLngLat([lng, lat]).addTo(map);
+  const input = document.getElementById("destination");
+  if (input) input.value = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+  isEndAdded = true;
+  showToast("Đã đặt làm Điểm kết thúc");
+  hideContextMenu();
+});

@@ -24,6 +24,10 @@
   * Tính toán và hiển thị tổng chiều dài của đường đi (Distance) theo đơn vị Kilomet (km) ngay khi vẽ.
 
 ### 3. Tương tác trực tiếp trên bản đồ (Direct Map Interactions)
+* **Menu chuột phải (Context Menu):** Click chuột phải vào bất kỳ vị trí nào trên bản đồ để mở menu tiện ích:
+  * Sao chép tọa độ dạng `lat, lng` hoặc `lng, lat`
+  * Sao chép tọa độ định dạng JSON `{"lat": ..., "lng": ...}`
+  * Đặt nhanh làm Điểm xuất phát (Origin) hoặc Điểm kết thúc (Destination) kèm thông báo Toast
 * **Chọn tọa độ bằng cách click chuột (Direction Tab):** Khi click chuột vào bản đồ, tọa độ điểm click sẽ tự động được điền vào ô *Origin* (nếu trống) hoặc ô *Destination* (nếu ô Origin đã có dữ liệu). Đồng thời đánh dấu điểm bằng Marker trên bản đồ.
 * **Xóa điểm nhanh:** Click trực tiếp vào Marker điểm xuất phát hoặc điểm kết thúc trên bản đồ để gỡ bỏ Marker đó và xóa trống ô nhập liệu tương ứng.
 * **Đóng/Xóa trạng thái:** Nút đóng (Close) trên bảng chi tiết tuyến đường giúp nhanh chóng dọn dẹp bản đồ, xóa các Marker và Polyline để bắt đầu lượt vẽ mới.

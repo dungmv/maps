@@ -24,6 +24,10 @@ An interactive map application designed to visualize routes (Directions) and dra
   * Computes and displays the total path distance in kilometers (km) in real-time.
 
 ### 3. Direct Map Interactions
+* **Right-Click Context Menu:** Right-click anywhere on the map to open a context menu with options to:
+  * Copy coordinates as `lat, lng` or `lng, lat`
+  * Copy coordinates as JSON object `{"lat": ..., "lng": ...}`
+  * Set directly as Origin or Destination point with toast notification
 * **Click-to-Select Coordinates (Direction Tab):** Clicking the map automatically populates the *Origin* field (if empty) or the *Destination* field (if the origin is already set) and adds a marker.
 * **Quick Marker Removal:** Click directly on an Origin or Destination marker to remove it from the map and clear its input field.
 * **Clear Map State:** Clear button on the info panel resets the map, removing markers and polylines to start fresh.
