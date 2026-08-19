@@ -741,30 +741,6 @@ document.getElementById("btn_draw").addEventListener("click", function () {
   });
 });
 
-// Map click listener
-map.on("click", function (event) {
-  const { lng, lat } = event.lngLat;
-
-  if (activeTab === "direction") {
-    let marker = null;
-    let input = null;
-
-    if (!isStartAdded) {
-      marker = startMarker;
-      input = document.getElementById("origin");
-      isStartAdded = true;
-    } else if (!isEndAdded) {
-      marker = endMarker;
-      input = document.getElementById("destination");
-      isEndAdded = true;
-    }
-
-    if (marker) {
-      marker.setLngLat([lng, lat]).addTo(map);
-      input.value = `${lat.toFixed(6)},${lng.toFixed(6)}`;
-    }
-  }
-});
 
 // Settings Modal logic
 const settingsModal = document.getElementById("settings-modal");
