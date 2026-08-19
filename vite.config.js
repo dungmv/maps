@@ -6,8 +6,6 @@ export default defineConfig({
   build: {
     outDir: "dist",
   },
-  optimizeDeps: {
-    exclude: ["maplibre-gl"],
-  },
   plugins: [tailwindcss()],
+  ssr: {noExternal: ['maplibre-gl']},
 });

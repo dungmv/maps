@@ -1,7 +1,10 @@
 import "./style.css";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { decode, encode } from "@googlemaps/polyline-codec";
+import { decode } from "@googlemaps/polyline-codec";
 import * as maplibregl from "maplibre-gl";
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+
+maplibregl.setWorkerUrl(workerUrl);
 
 const loading = document.getElementById("loading");
 
