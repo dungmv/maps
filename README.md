@@ -24,9 +24,7 @@ An interactive map application designed to visualize routes (Directions) and dra
   * Computes and displays the total path distance in kilometers (km) in real-time.
 
 ### 3. Direct Map Interactions
-* **Click-to-Select Coordinates:**
-  * **In Direction Tab:** Clicking the map automatically populates the *Origin* field (if empty) or the *Destination* field (if the origin is already set) and adds a marker.
-  * **In Polyline Tab:** Clicking the map automatically appends the clicked coordinate to the text area (separated by `|`), enabling fast path-drawing without manual typing.
+* **Click-to-Select Coordinates (Direction Tab):** Clicking the map automatically populates the *Origin* field (if empty) or the *Destination* field (if the origin is already set) and adds a marker.
 * **Quick Marker Removal:** Click directly on an Origin or Destination marker to remove it from the map and clear its input field.
 * **Clear Map State:** Clear button on the info panel resets the map, removing markers and polylines to start fresh.
 

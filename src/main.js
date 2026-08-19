@@ -1,7 +1,7 @@
 import "./style.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { decode, encode } from "@googlemaps/polyline-codec";
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 
 const loading = document.getElementById("loading");
 
@@ -268,17 +268,17 @@ function updateFormatUI() {
     if (selectedFormat === "latlng") {
       textarea.placeholder = "21.036809,105.782771|21.037500,105.783500|...";
       if (hintEl) {
-        hintEl.innerHTML = `<span class="font-semibold">Format:</span> lat,lng|lat,lng... Click directly on the map to add coordinates automatically.`;
+        hintEl.innerHTML = `<span class="font-semibold">Format:</span> lat,lng|lat,lng...`;
       }
     } else if (selectedFormat === "json") {
       textarea.placeholder = `[{"lat": 21.036809, "lng": 105.782771},{"lat": 21.037500, "lng": 105.783500}]`;
       if (hintEl) {
-        hintEl.innerHTML = `<span class="font-semibold">Format:</span> JSON Array [{"lat":21.036,"lng":105.78}]. Click directly on the map to add coordinates.`;
+        hintEl.innerHTML = `<span class="font-semibold">Format:</span> JSON Array [{"lat":21.036,"lng":105.78}].`;
       }
     } else if (selectedFormat === "polyline") {
       textarea.placeholder = "_p~iF~ps|U_ulLnnqC_mqN...";
       if (hintEl) {
-        hintEl.innerHTML = `<span class="font-semibold">Format:</span> Encoded Polyline (Precision ${getSelectedPrecision()}). Click directly on the map to add coordinates.`;
+        hintEl.innerHTML = `<span class="font-semibold">Format:</span> Encoded Polyline (Precision ${getSelectedPrecision()}).`;
       }
     }
   }
@@ -372,87 +372,6 @@ function parseCoordinates(coordsInput) {
   return [];
 }
 
-function appendCoordinateToInput(textarea, lat, lng) {
-  const val = textarea.value.trim();
-  const formattedLat = parseFloat(lat.toFixed(6));
-  const formattedLng = parseFloat(lng.toFixed(6));
-  const formattedCoord = `${formattedLat},${formattedLng}`;
-
-  if (selectedFormat === "latlng") {
-    if (!val) {
-      textarea.value = formattedCoord;
-      return;
-    }
-    if (/[|\n]$/.test(val)) {
-      textarea.value = val + formattedCoord;
-    } else {
-      if (val.includes("\n")) {
-        textarea.value = val + "\n" + formattedCoord;
-      } else {
-        textarea.value = val + "|" + formattedCoord;
-      }
-    }
-  } else if (selectedFormat === "json") {
-    if (!val) {
-      textarea.value = JSON.stringify(
-        [{ lat: formattedLat, lng: formattedLng }],
-        null,
-        2
-      );
-      return;
-    }
-
-    try {
-      let parsed = null;
-      try {
-        parsed = JSON.parse(val);
-      } catch (e) {
-        const jsonStyle = val
-          .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
-          .replace(/'/g, '"');
-        parsed = JSON.parse(jsonStyle);
-      }
-      if (Array.isArray(parsed)) {
-        let useXY = false;
-        if (parsed.length > 0 && parsed[0]) {
-          if (parsed[0].x !== undefined || parsed[0].y !== undefined) {
-            useXY = true;
-          }
-        }
-        const newItem = useXY
-          ? { x: formattedLat, y: formattedLng }
-          : { lat: formattedLat, lng: formattedLng };
-        parsed.push(newItem);
-        textarea.value = JSON.stringify(parsed, null, 2);
-        return;
-      }
-    } catch (e) {
-      // fallback
-    }
-
-    textarea.value = JSON.stringify(
-      [{ lat: formattedLat, lng: formattedLng }],
-      null,
-      2
-    );
-  } else if (selectedFormat === "polyline") {
-    const precision = getSelectedPrecision();
-    let coords = [];
-    if (val) {
-      try {
-        const unescapedVal = val.replace(/\\\\/g, "\\");
-        const decoded = decode(unescapedVal, precision);
-        if (Array.isArray(decoded)) {
-          coords = decoded;
-        }
-      } catch (e) {
-        // start new polyline
-      }
-    }
-    coords.push([formattedLat, formattedLng]);
-    textarea.value = encode(coords, precision);
-  }
-}
 
 const tabDirection = document.getElementById("tab-direction");
 const tabPolyline = document.getElementById("tab-polyline");
@@ -844,9 +763,6 @@ map.on("click", function (event) {
       marker.setLngLat([lng, lat]).addTo(map);
       input.value = `${lat.toFixed(6)},${lng.toFixed(6)}`;
     }
-  } else if (activeTab === "polyline") {
-    const textarea = document.getElementById("polyline-coords");
-    appendCoordinateToInput(textarea, lat, lng);
   }
 });
 
